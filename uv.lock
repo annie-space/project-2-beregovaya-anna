@@ -16,7 +16,7 @@ wheels = [
 
 [[package]]
 name = "primitive-db"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "prettytable" },
@@ -25,7 +25,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "prettytable", specifier = ">=3.18.0" },
+    { name = "prettytable", specifier = ">=3.10.0" },
     { name = "prompt", specifier = ">=0.4.1" },
 ]
 

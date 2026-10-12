@@ -82,3 +82,14 @@ uv run project
 Вы уверены, что хотите выполнить "удаление таблицы"? [y/n]: y
 Таблица "users" успешно удалена.
 ```
+## Демонстрация
+
+Полный сценарий работы:
+
+1. Запуск: `uv run project`
+2. Создание таблицы: `create_table users name:str age:int is_active:bool`
+3. Вставка: `insert into users values ("Sergei", 28, true)`
+4. Выборка: `select from users`
+5. Обновление: `update users set age = 29 where name = "Sergei"` (подтверждение `y`)
+6. Удаление: `delete from users where ID = 1` (подтверждение `y`)
+7. Удаление таблицы: `drop_table users` (подтверждение `y`)
