@@ -1,10 +1,12 @@
-"""Основная логика работы с таблицами"""
-
+"""Основная логика работы с таблицами."""
 
 from primitive_db.constants import ID_COLUMN, VALID_TYPES
+from primitive_db.decorators import confirm_action, handle_db_errors, log_time
 
 # ---------- Управление таблицами ----------
 
+
+@handle_db_errors
 def create_table(metadata, table_name, columns):
     """Создаёт таблицу с заданными столбцами."""
     if table_name in metadata:
@@ -33,6 +35,8 @@ def create_table(metadata, table_name, columns):
     return metadata
 
 
+@handle_db_errors
+@confirm_action("удаление таблицы")
 def drop_table(metadata, table_name):
     """Удаляет таблицу из метаданных."""
     if table_name not in metadata:
@@ -55,6 +59,7 @@ def list_tables(metadata):
 
 # ---------- Вспомогательные ----------
 
+
 def _column_types(metadata, table_name):
     """Возвращает словарь {имя: тип} для таблицы."""
     schema = metadata[table_name]
@@ -76,6 +81,9 @@ def _cast(value, col_type):
 
 # ---------- CRUD ----------
 
+
+@handle_db_errors
+@log_time
 def insert(metadata, data, table_name, values):
     """Добавляет запись в таблицу."""
     if table_name not in metadata:
@@ -92,19 +100,17 @@ def insert(metadata, data, table_name, values):
         )
         return data
 
-    try:
-        record = {"ID": (max((r["ID"] for r in data), default=0) + 1)}
-        for field, value in zip(fields, values):
-            record[field] = _cast(value, column_types[field])
-    except ValueError:
-        print("Ошибка: не удалось привести значение к нужному типу.")
-        return data
+    record = {"ID": (max((r["ID"] for r in data), default=0) + 1)}
+    for field, value in zip(fields, values):
+        record[field] = _cast(value, column_types[field])
 
     data.append(record)
     print(f'Запись с ID={record["ID"]} успешно добавлена в таблицу "{table_name}".')
     return data
 
 
+@handle_db_errors
+@log_time
 def select(data, where=None):
     """Возвращает список записей, подходящих под условие where."""
     if where is None:
@@ -113,6 +119,8 @@ def select(data, where=None):
     return [row for row in data if row.get(column) == value]
 
 
+@handle_db_errors
+@confirm_action("обновление записи")
 def update(data, set_clause, where_clause):
     """Обновляет записи, подходящие под where_clause."""
     column, value = where_clause
@@ -124,12 +132,14 @@ def update(data, set_clause, where_clause):
             updated_ids.append(row["ID"])
     if updated_ids:
         for rid in updated_ids:
-            print(f'Запись с ID={rid} в таблице успешно обновлена.')
+            print(f"Запись с ID={rid} в таблице успешно обновлена.")
     else:
         print("Записи, подходящие под условие, не найдены.")
     return data
 
 
+@handle_db_errors
+@confirm_action("удаление записи")
 def delete(data, where_clause):
     """Удаляет записи, подходящие под where_clause."""
     column, value = where_clause
@@ -141,6 +151,7 @@ def delete(data, where_clause):
     else:
         print("Записи, подходящие под условие, не найдены.")
     return remaining
+
 
 def info(metadata, table_name, data):
     """Печатает информацию о таблице."""

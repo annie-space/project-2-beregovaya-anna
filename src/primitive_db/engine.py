@@ -1,4 +1,4 @@
-"""Команды"""
+"""Команды."""
 
 import shlex
 
@@ -15,6 +15,7 @@ from primitive_db.core import (
     select,
     update,
 )
+from primitive_db.decorators import create_cacher
 from primitive_db.parser import parse_condition, parse_set, parse_values
 from primitive_db.utils import (
     load_metadata,
@@ -65,13 +66,13 @@ def _print_rows(metadata, table_name, rows):
 
 def _col_types(metadata, table_name):
     """Возвращает словарь {имя: тип} для таблицы."""
-    return {
-        c.split(":")[0]: c.split(":")[1] for c in metadata[table_name]
-    }
+    return {c.split(":")[0]: c.split(":")[1] for c in metadata[table_name]}
 
 
 def run():
     """Основной цикл программы."""
+    cache_result = create_cacher()
+
     print("***База данных***")
     print_help()
 
@@ -110,8 +111,9 @@ def run():
                 print("Некорректное значение. Попробуйте снова.")
                 continue
             metadata = load_metadata()
-            metadata = drop_table(metadata, args[1])
-            save_metadata(metadata)
+            result = drop_table(metadata, args[1])
+            if result is not None:
+                save_metadata(result)
             continue
 
         if command == "list_tables":
@@ -133,8 +135,10 @@ def run():
             raw_values = " ".join(args[4:])
             values = parse_values(raw_values)
             data = load_table_data(table_name)
-            data = insert(metadata, data, table_name, values)
-            save_table_data(table_name, data)
+            result = insert(metadata, data, table_name, values)
+            if result is not None:
+                save_table_data(table_name, result)
+                cache_result = create_cacher()  # сброс кэша после изменения
             continue
 
         if command == "select":
@@ -149,12 +153,16 @@ def run():
                 continue
             data = load_table_data(table_name)
             if len(args) == 3:
-                rows = select(data)
+                cache_key = (table_name, None)
+                rows = cache_result(cache_key, lambda: select(data))
             elif len(args) == 7 and args[3].lower() == "where":
                 column, value = parse_condition(
                     args[4:7], _col_types(metadata, table_name)
                 )
-                rows = select(data, (column, value))
+                cache_key = (table_name, (column, value))
+                rows = cache_result(
+                    cache_key, lambda: select(data, (column, value))
+                )
             else:
                 print("Некорректное значение. Попробуйте снова.")
                 continue
@@ -179,8 +187,10 @@ def run():
             set_clause = parse_set(args[3:6], types)
             where_clause = parse_condition(args[7:10], types)
             data = load_table_data(table_name)
-            data = update(data, set_clause, where_clause)
-            save_table_data(table_name, data)
+            result = update(data, set_clause, where_clause)
+            if result is not None:
+                save_table_data(table_name, result)
+                cache_result = create_cacher()  # сброс кэша после изменения
             continue
 
         if command == "delete":
@@ -200,8 +210,10 @@ def run():
             types = _col_types(metadata, table_name)
             where_clause = parse_condition(args[4:7], types)
             data = load_table_data(table_name)
-            data = delete(data, where_clause)
-            save_table_data(table_name, data)
+            result = delete(data, where_clause)
+            if result is not None:
+                save_table_data(table_name, result)
+                cache_result = create_cacher()  # сброс кэша после изменения
             continue
 
         if command == "info":
